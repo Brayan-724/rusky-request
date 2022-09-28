@@ -1,51 +1,32 @@
 use super::common::{PromptError, PromptType};
-use crate::{io_handl, Color, Modifier, MyFromStr};
+use crate::{io_handl, Color, FormatTheme, Modifier, MyFromStr};
+use std::fmt::Debug;
 use std::io::{self, Read, Write};
 use termion::clear::CurrentLine;
 use termion::cursor::{DetectCursorPos, Goto, Left};
 use termion::event::{Event, Key};
 use termion::input::Events;
 
-#[derive(Debug, PartialEq)]
-pub struct Prompt {
+#[derive(Clone, Debug)]
+pub struct Prompt<'a> {
     pub prefix: String,
     pub text: String,
     pub default: Option<String>,
     pub extra: Option<String>,
     pub line: Option<u16>,
     pub prompt_type: PromptType,
-}
-
-// Static props
-impl Prompt {
-    pub fn parse_val<F: MyFromStr>(value: &str) -> Result<F, <F as MyFromStr>::Err_> {
-        MyFromStr::from_str(value)
-    }
+    pub theme: &'a dyn FormatTheme,
 }
 
 // Instance props
-impl Prompt {
+impl<'a> Prompt<'a> {
     pub fn write_text<W: Write>(&self, stdout: &mut W) -> io::Result<()> {
-        write!(stdout, "{}{}", Left(9999), CurrentLine)?;
         write!(
             stdout,
-            "{} {} ",
-            Modifier::Bold.a(Color::GreenBright.a(&self.prefix)),
-            &self.text
+            "{}",
+            self.theme
+                .prompt_text(&self.prefix, &self.text, &self.extra)
         )?;
-
-        match &self.extra {
-            None => {}
-            Some(extra) => {
-                write!(
-                    stdout,
-                    "{}({}){} ",
-                    Color::BlackBright,
-                    extra,
-                    Color::BlackBright.get_close()
-                )?;
-            }
-        }
 
         stdout.flush()?;
         Ok(())

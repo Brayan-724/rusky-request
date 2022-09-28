@@ -1,5 +1,5 @@
 use super::common::{PromptError, PromptType};
-use crate::{io_handl, Color, Modifier};
+use crate::{io_handl, Color, FormatTheme, Modifier};
 use std::io::{self, Read, Write};
 use termion::{
     clear::CurrentLine,
@@ -8,37 +8,24 @@ use termion::{
     input::Events,
 };
 
-pub struct NumberPrompt {
+pub struct NumberPrompt<'a> {
     pub prefix: String,
     pub text: String,
     pub default: Option<String>,
     pub extra: Option<String>,
     pub line: Option<u16>,
     pub prompt_type: PromptType,
+    pub theme: &'a dyn FormatTheme,
 }
 
-impl NumberPrompt {
+impl<'a> NumberPrompt<'a> {
     pub fn write_text<W: Write>(&self, stdout: &mut W) -> io::Result<()> {
-        write!(stdout, "{}{}", Left(999), CurrentLine)?;
         write!(
             stdout,
-            "{} {} ›",
-            Modifier::Bold.a(Color::GreenBright.a(&self.prefix)),
-            Modifier::Bold.a(&self.text)
+            "{}",
+            self.theme
+                .prompt_text(&self.prefix, &self.text, &self.extra)
         )?;
-
-        match &self.extra {
-            None => {}
-            Some(extra) => {
-                write!(
-                    stdout,
-                    "{}({}){} ",
-                    Color::BlackBright,
-                    extra,
-                    Color::BlackBright.get_close()
-                )?;
-            }
-        }
 
         stdout.flush()?;
         Ok(())

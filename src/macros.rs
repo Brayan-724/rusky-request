@@ -29,7 +29,7 @@ macro_rules! match_prompt_type_struct {
 
 #[macro_export]
 macro_rules! create_prompt {
-    ($prefix:tt $text:expr; $(($($extra:expr)+))? $([$($default:expr)+])? $($type:ident)?) => {
+    ($prefix:tt $text:expr; $(($($extra:expr)+))? $([$($default:expr)+])? $({ $THEME: expr })? $($type:ident)?) => {
         $crate::match_prompt_type_struct!([$($type)?] {
             prefix: Into::into(stringify!($prefix)),
             text: Into::into($text),
@@ -48,6 +48,11 @@ macro_rules! create_prompt {
                 $crate::PromptType:: $($type)?
             } else {
                 $crate::PromptType::String
+            }),
+            theme: $crate::handle_optional!(if ($($THEME)?) {
+                $($THEME)?
+            } else {
+                &$crate::DefaultTheme
             })
         })
     }

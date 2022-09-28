@@ -1,6 +1,9 @@
 pub extern crate termion;
 pub use termion::input::TermRead;
 
+pub extern crate rusky_icons;
+pub use rusky_icons::*;
+
 pub mod colors;
 mod from_str;
 pub mod macros;
