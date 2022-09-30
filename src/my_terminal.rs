@@ -39,19 +39,19 @@ impl<W: Write> Write for MyTerminal<W> {
         let mut curr: Vec<u8> = vec![];
 
         for ch in buf {
-            if *ch == get_char_code("\n") {
-                curr.push(get_char_code("\n"));
-                curr.push(get_char_code("\x1B"));
-                curr.push(get_char_code("["));
-                curr.push(get_char_code("9"));
-                curr.push(get_char_code("9"));
-                curr.push(get_char_code("9"));
-                curr.push(get_char_code("9"));
-                curr.push(get_char_code("9"));
-                curr.push(get_char_code("9"));
-                curr.push(get_char_code("9"));
-                curr.push(get_char_code("9"));
-                curr.push(get_char_code("D"));
+            if *ch == b'\n' {
+                curr.push(b'\n');
+                curr.push(b'\x1B');
+                curr.push(b'[');
+                curr.push(b'9');
+                curr.push(b'9');
+                curr.push(b'9');
+                curr.push(b'9');
+                curr.push(b'9');
+                curr.push(b'9');
+                curr.push(b'9');
+                curr.push(b'9');
+                curr.push(b'D');
             } else {
                 curr.push(*ch);
             }
@@ -66,14 +66,4 @@ impl<W: Write> Write for MyTerminal<W> {
     fn flush(&mut self) -> io::Result<()> {
         self.term.flush()
     }
-}
-
-fn get_char_code<T: Into<String>>(text: T) -> u8 {
-    let text: String = Into::into(text);
-
-    for ch in text.as_bytes() {
-        return *ch;
-    }
-
-    0
 }

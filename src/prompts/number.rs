@@ -1,52 +1,27 @@
-use super::common::{PromptError, PromptType};
-use crate::{io_handl, Color, FormatTheme, Modifier};
 use std::io::{self, Read, Write};
-use termion::{
-    clear::CurrentLine,
-    cursor::{DetectCursorPos, Goto, Left, Up},
-    event::{Event, Key},
-    input::Events,
-};
 
-pub struct NumberPrompt<'a> {
-    pub prefix: String,
-    pub text: String,
-    pub default: Option<String>,
-    pub extra: Option<String>,
-    pub line: Option<u16>,
-    pub prompt_type: PromptType,
-    pub theme: &'a dyn FormatTheme,
+use termion::clear::CurrentLine;
+use termion::cursor::{DetectCursorPos, Goto, Left, Up};
+use termion::event::{Event, Key};
+use termion::input::Events;
+
+use crate::themes::FormatTheme;
+use crate::PromptBase;
+use crate::{io_handl, Color, PromptError, PromptType};
+
+#[derive(Debug)]
+pub struct NumberPrompt<'a, T: FormatTheme> {
+    pub base: &'a mut PromptBase,
+    pub theme: &'a T,
 }
 
-impl<'a> NumberPrompt<'a> {
+impl<'a, T: FormatTheme> NumberPrompt<'a, T> {
     pub fn write_text<W: Write>(&self, stdout: &mut W) -> io::Result<()> {
-        write!(
-            stdout,
-            "{}",
-            self.theme
-                .prompt_text(&self.prefix, &self.text, &self.extra)
-        )?;
-
-        stdout.flush()?;
-        Ok(())
+        self.base.write_prompt(self.theme, stdout)
     }
 
     pub fn write_default<W: Write>(&self, stdout: &mut W) -> io::Result<()> {
-        let default = match &self.default {
-            Some(d) => d,
-            None => return Ok(()),
-        };
-
-        write!(stdout, "{}{}", Left(999), CurrentLine)?;
-        write!(
-            stdout,
-            "{}[{}]{} ",
-            Modifier::Dim,
-            default,
-            Modifier::Dim.get_close()
-        )?;
-        stdout.flush()?;
-        Ok(())
+        self.base.write_default(self.theme, stdout)
     }
 
     pub fn prompt<R: Read, W: Write>(
@@ -62,9 +37,9 @@ impl<'a> NumberPrompt<'a> {
 
         let mouse_pos = io_handl!(DetectCursorPos::cursor_pos(stdout));
 
-        let end_line = match &self.line {
+        let end_line = match &self.base.line {
             None => {
-                self.line = Option::Some(mouse_pos.1);
+                self.base.line = Option::Some(mouse_pos.1);
                 mouse_pos.1 + 1
             }
             Some(line) => {
@@ -88,12 +63,12 @@ impl<'a> NumberPrompt<'a> {
         let mut pre_data = String::new();
         let mut post_data = String::new();
 
-        let is_signed = match &self.prompt_type {
+        let is_signed = match &self.base.prompt_type {
             PromptType::Float | PromptType::Int => true,
             PromptType::UFloat | PromptType::UInt => false,
             _ => unreachable!(),
         };
-        let is_float = match &self.prompt_type {
+        let is_float = match &self.base.prompt_type {
             PromptType::Float | PromptType::UFloat => true,
             PromptType::Int | PromptType::UInt => false,
             _ => unreachable!(),
@@ -153,9 +128,9 @@ impl<'a> NumberPrompt<'a> {
                 }
                 Event::Key(Key::Char('\n')) => {
                     // If has no value then try to use the default value
-                    if get_num!().len() == 0 && self.default.is_some() {
+                    if get_num!().len() == 0 && self.base.default.is_some() {
                         post_data = String::new();
-                        pre_data = self.default.as_ref().unwrap().to_string();
+                        pre_data = self.base.default.as_ref().unwrap().to_string();
                         update!();
                     }
 
@@ -299,7 +274,7 @@ impl<'a> NumberPrompt<'a> {
         stdout: &mut W,
         go_back: Option<bool>,
     ) -> Result<String, PromptError> {
-        match &self.prompt_type {
+        match &self.base.prompt_type {
             PromptType::Int | PromptType::UInt | PromptType::Float | PromptType::UFloat => {}
             _ => {
                 return Err(PromptError::Custom(String::from(

@@ -1,52 +1,28 @@
-use super::common::{PromptError, PromptType};
-use crate::{io_handl, Color, FormatTheme, Modifier, MyFromStr};
 use std::fmt::Debug;
 use std::io::{self, Read, Write};
+
 use termion::clear::CurrentLine;
 use termion::cursor::{DetectCursorPos, Goto, Left};
 use termion::event::{Event, Key};
 use termion::input::Events;
 
-#[derive(Clone, Debug)]
-pub struct Prompt<'a> {
-    pub prefix: String,
-    pub text: String,
-    pub default: Option<String>,
-    pub extra: Option<String>,
-    pub line: Option<u16>,
-    pub prompt_type: PromptType,
-    pub theme: &'a dyn FormatTheme,
+use crate::themes::FormatTheme;
+use crate::{io_handl, Color, MyFromStr, PromptBase, PromptError, PromptType};
+
+#[derive(Debug)]
+pub struct TextPrompt<'a, T: FormatTheme> {
+    pub base: &'a mut PromptBase,
+    pub theme: &'a T,
 }
 
 // Instance props
-impl<'a> Prompt<'a> {
+impl<'a, T: FormatTheme> TextPrompt<'a, T> {
     pub fn write_text<W: Write>(&self, stdout: &mut W) -> io::Result<()> {
-        write!(
-            stdout,
-            "{}",
-            self.theme
-                .prompt_text(&self.prefix, &self.text, &self.extra)
-        )?;
-
-        stdout.flush()?;
-        Ok(())
+        self.base.write_prompt(self.theme, stdout)
     }
 
     pub fn write_default<W: Write>(&self, stdout: &mut W) -> io::Result<()> {
-        let default = match &self.default {
-            Some(d) => d,
-            None => return Ok(()),
-        };
-
-        write!(
-            stdout,
-            "{}[{}]{} ",
-            Modifier::Dim,
-            default,
-            Modifier::Dim.get_close()
-        )?;
-        stdout.flush()?;
-        Ok(())
+        self.base.write_default(self.theme, stdout)
     }
 
     pub fn prompt<R: Read, W: Write>(
@@ -62,9 +38,9 @@ impl<'a> Prompt<'a> {
 
         let mouse_pos = io_handl!(DetectCursorPos::cursor_pos(stdout));
 
-        let end_line = match &self.line {
+        let end_line = match &self.base.line {
             None => {
-                self.line = Option::Some(mouse_pos.1);
+                self.base.line = Option::Some(mouse_pos.1);
                 mouse_pos.1 + 1
             }
             Some(line) => {
@@ -110,9 +86,9 @@ impl<'a> Prompt<'a> {
                     return Err(PromptError::KeyboardInterrupt);
                 }
                 Event::Key(Key::Char('\n')) => {
-                    if get_data!().len() == 0 && self.default.is_some() {
+                    if get_data!().len() == 0 && self.base.default.is_some() {
                         post_data = String::new();
-                        pre_data = match &self.default {
+                        pre_data = match &self.base.default {
                             None => unreachable!(),
                             Some(default) => default.clone(),
                         };
@@ -187,7 +163,7 @@ impl<'a> Prompt<'a> {
         stdout: &mut W,
         go_back: Option<bool>,
     ) -> Result<String, PromptError> {
-        match &self.prompt_type {
+        match &self.base.prompt_type {
             PromptType::String | PromptType::Bool => {}
             _ => {
                 return Err(PromptError::Custom(String::from(
@@ -206,7 +182,7 @@ impl<'a> Prompt<'a> {
         'prompt: loop {
             let prompted = self.prompt(stdin, stdout, go_back.clone());
             match prompted {
-                Ok(expr) => match &self.prompt_type {
+                Ok(expr) => match &self.base.prompt_type {
                     PromptType::String => {
                         if expr.len() == 0 {
                             send_err!("The text should contain 1 character or more");

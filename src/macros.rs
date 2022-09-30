@@ -10,20 +10,14 @@ macro_rules! match_prompt_type_extra {
 
 #[macro_export]
 macro_rules! match_prompt_type_struct {
-    ([Int] $($tail:tt)+) => {
+    ([$(U)? Int] $($tail:tt)+) => {
         $crate::NumberPrompt $($tail)+
     };
-    ([UInt] $($tail:tt)+) => {
-        $crate::NumberPrompt $($tail)+
-    };
-    ([Float] $($tail:tt)+) => {
-        $crate::NumberPrompt $($tail)+
-    };
-    ([UFloat] $($tail:tt)+) => {
+    ([$(U)? Float] $($tail:tt)+) => {
         $crate::NumberPrompt $($tail)+
     };
     ([$($_:ident)?] $($tail:tt)+) => {
-        $crate::Prompt $($tail)+
+        $crate::TextPrompt $($tail)+
     };
 }
 
@@ -31,28 +25,30 @@ macro_rules! match_prompt_type_struct {
 macro_rules! create_prompt {
     ($prefix:tt $text:expr; $(($($extra:expr)+))? $([$($default:expr)+])? $({ $THEME: expr })? $($type:ident)?) => {
         $crate::match_prompt_type_struct!([$($type)?] {
-            prefix: Into::into(stringify!($prefix)),
-            text: Into::into($text),
-            default: $crate::handle_optional!(if ($($($default)+)?) {
-                Option::Some(Into::into($($($default)+)?))
-            } else {
-                Option::None
-            }),
-            extra: $crate::handle_optional!(if ($($($extra)+)?) {
-                Option::Some(Into::into($($($extra)+)?))
-            } else {
-                $crate::match_prompt_type_extra!($($type)?)
-            }),
-            line: Option::None,
-            prompt_type: $crate::handle_optional!(if ($($type)?) {
-                $crate::PromptType:: $($type)?
-            } else {
-                $crate::PromptType::String
-            }),
+            base: &mut $crate::PromptBase {
+                prefix: Into::into(stringify!($prefix)),
+                text: Into::into($text),
+                default: $crate::handle_optional!(if ($($($default)+)?) {
+                    Option::Some(Into::into($($($default)+)?))
+                } else {
+                    Option::None
+                }),
+                extra: $crate::handle_optional!(if ($($($extra)+)?) {
+                    Option::Some(Into::into($($($extra)+)?))
+                } else {
+                    $crate::match_prompt_type_extra!($($type)?)
+                }),
+                line: Option::None,
+                prompt_type: $crate::handle_optional!(if ($($type)?) {
+                    $crate::PromptType:: $($type)?
+                } else {
+                    $crate::PromptType::String
+                }),
+            },
             theme: $crate::handle_optional!(if ($($THEME)?) {
                 $($THEME)?
             } else {
-                &$crate::DefaultTheme
+                &$crate::themes::DefaultTheme
             })
         })
     }

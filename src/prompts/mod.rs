@@ -1,7 +1,9 @@
 mod common;
-pub mod input;
+mod helper;
 pub mod number;
+pub mod text;
 
 pub use common::*;
-pub use input::*;
+pub use helper::*;
 pub use number::*;
+pub use text::*;
